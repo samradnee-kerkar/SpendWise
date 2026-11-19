@@ -1,14 +1,16 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
-import AppTabs from "@/components/app-tabs";
 import { AppThemeProvider, useAppTheme } from "@/hooks/use-app-theme";
+import { AuthProvider, useAuth } from "@/lib/use-auth";
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { theme, colors } = useAppTheme();
+  const { user, loading } = useAuth();
 
   const navigationTheme = {
     ...(theme === "dark" ? DarkTheme : DefaultTheme),
@@ -22,10 +24,37 @@ function RootNavigator() {
     },
   };
 
+  const basePaperTheme = theme === "dark" ? MD3DarkTheme : MD3LightTheme;
+  const paperTheme = {
+    ...basePaperTheme,
+    colors: {
+      ...basePaperTheme.colors,
+      primary: colors.primary,
+      background: colors.background,
+      surface: colors.surface,
+      onSurface: colors.text,
+      onSurfaceVariant: colors.secondary,
+      outline: colors.border,
+      error: colors.error,
+    },
+  };
+
   return (
     <ThemeProvider value={navigationTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+      <PaperProvider theme={paperTheme}>
+        <AnimatedSplashOverlay />
+        {loading ? null : (
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Protected guard={!!user}>
+              <Stack.Screen name="(tabs)" />
+            </Stack.Protected>
+            <Stack.Protected guard={!user}>
+              <Stack.Screen name="login" />
+              <Stack.Screen name="register" />
+            </Stack.Protected>
+          </Stack>
+        )}
+      </PaperProvider>
     </ThemeProvider>
   );
 }
@@ -33,7 +62,9 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <AppThemeProvider>
-      <RootNavigator />
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
     </AppThemeProvider>
   );
 }
