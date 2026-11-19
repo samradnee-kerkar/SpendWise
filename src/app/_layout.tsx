@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
-import { AnimatedSplashOverlay } from "@/components/animated-icon";
+import { AppSplash } from "@/components/app-splash";
 import { AppThemeProvider, useAppTheme } from "@/hooks/use-app-theme";
 import { AuthProvider, useAuth } from "@/lib/use-auth";
 
@@ -42,7 +42,6 @@ function RootNavigator() {
   return (
     <ThemeProvider value={navigationTheme}>
       <PaperProvider theme={paperTheme}>
-        <AnimatedSplashOverlay />
         {loading ? null : (
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Protected guard={!!user}>
@@ -54,6 +53,7 @@ function RootNavigator() {
             </Stack.Protected>
           </Stack>
         )}
+        <AppSplash />
       </PaperProvider>
     </ThemeProvider>
   );
