@@ -28,6 +28,9 @@ export default function AppTabs() {
           <TabTrigger name="add" href="/add" asChild>
             <TabButton>Add</TabButton>
           </TabTrigger>
+          <TabTrigger name="analytics" href={"/analytics" as any} asChild>
+            <TabButton>Analytics</TabButton>
+          </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>Profile</TabButton>
           </TabTrigger>
