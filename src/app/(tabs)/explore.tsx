@@ -27,6 +27,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/hooks/use-theme";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/use-auth";
+import { useCustomCategories } from "@/lib/use-categories";
 
 type Transaction = {
   id: string;
@@ -39,16 +40,15 @@ type Transaction = {
 
 type Filter = "all" | "income" | "expense";
 
-const EXPENSE_CATEGORIES = [
+const EXPENSE_DEFAULTS = [
   "Food",
   "Travel",
   "Shopping",
   "Bills",
   "Health",
   "Fun",
-  "Other",
 ];
-const INCOME_CATEGORIES = ["Salary", "Pocket money", "Gift", "Other"];
+const INCOME_DEFAULTS = ["Salary", "Pocket money", "Gift"];
 
 function formatMoney(value: number) {
   return "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -72,6 +72,7 @@ function toDateString(d: Date) {
 export default function HistoryScreen() {
   const colors = useTheme();
   const { user } = useAuth();
+  const { custom, customIncome, addCategory } = useCustomCategories();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
@@ -85,6 +86,10 @@ export default function HistoryScreen() {
   const [editDate, setEditDate] = useState("");
   const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // New category box inside the edit form
+  const [newName, setNewName] = useState("");
+  const [creatingCat, setCreatingCat] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -149,6 +154,38 @@ export default function HistoryScreen() {
     setEditDescription(t.description);
     setEditDate(toDateString(t.date));
     setEditError("");
+    setNewName("");
+  }
+
+  // Categories shown in the edit box:
+  // defaults + the user's own + this transaction's current category + "Other"
+  const editDefaults =
+    editing?.type === "income" ? INCOME_DEFAULTS : EXPENSE_DEFAULTS;
+  const editSaved = editing?.type === "income" ? customIncome : custom;
+  const editCategories = (() => {
+    const list = [...editDefaults];
+    const addIfNew = (c: string) => {
+      if (!c || c === "Other") return;
+      if (!list.some((x) => x.toLowerCase() === c.toLowerCase())) list.push(c);
+    };
+    editSaved.forEach(addIfNew);
+    if (editing) addIfNew(editing.category);
+    list.push("Other");
+    return list;
+  })();
+
+  async function handleCreateCategory() {
+    if (!editing) return;
+    setEditError("");
+    setCreatingCat(true);
+    const result = await addCategory(newName, editCategories, editing.type);
+    setCreatingCat(false);
+    if (result.error || !result.name) {
+      setEditError(result.error ?? "Could not add the category.");
+      return;
+    }
+    setEditCategory(result.name);
+    setNewName("");
   }
 
   async function saveEdit() {
@@ -194,9 +231,6 @@ export default function HistoryScreen() {
       (filter === "all" || t.type === filter) &&
       (category === "All" || t.category === category),
   );
-
-  const editCategories =
-    editing?.type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -306,6 +340,28 @@ export default function HistoryScreen() {
                   </Chip>
                 ))}
               </View>
+
+              {editCategory === "Other" ? (
+                <View style={styles.newRow}>
+                  <TextInput
+                    label="Your own category"
+                    mode="outlined"
+                    value={newName}
+                    onChangeText={setNewName}
+                    maxLength={20}
+                    style={styles.newInput}
+                  />
+                  <Button
+                    mode="contained"
+                    onPress={handleCreateCategory}
+                    loading={creatingCat}
+                    disabled={creatingCat || newName.trim().length === 0}
+                  >
+                    Add
+                  </Button>
+                </View>
+              ) : null}
+
               <TextInput
                 label="Description"
                 mode="outlined"
@@ -353,5 +409,12 @@ const styles = StyleSheet.create({
   txRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   iconBtn: { margin: 0 },
   input: { marginBottom: 12 },
+  newRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  newInput: { flex: 1 },
   dialogArea: { maxHeight: 360, paddingHorizontal: 20 },
 });

@@ -1,41 +1,41 @@
 import {
-    Timestamp,
-    addDoc,
-    collection,
-    serverTimestamp,
+  Timestamp,
+  addDoc,
+  collection,
+  serverTimestamp,
 } from "firebase/firestore";
 import { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 import {
-    Button,
-    Chip,
-    HelperText,
-    SegmentedButtons,
-    Text,
-    TextInput,
+  Button,
+  Chip,
+  HelperText,
+  SegmentedButtons,
+  Text,
+  TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useTheme } from "@/hooks/use-theme";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/use-auth";
+import { useCustomCategories } from "@/lib/use-categories";
 
-const EXPENSE_CATEGORIES = [
+const EXPENSE_DEFAULTS = [
   "Food",
   "Travel",
   "Shopping",
   "Bills",
   "Health",
   "Fun",
-  "Other",
 ];
-const INCOME_CATEGORIES = ["Salary", "Pocket money", "Gift", "Other"];
+const INCOME_DEFAULTS = ["Salary", "Pocket money", "Gift"];
 
 // Returns today's date as YYYY-MM-DD using the phone's local time.
 function todayString() {
@@ -48,6 +48,7 @@ function todayString() {
 export default function AddTransactionScreen() {
   const colors = useTheme();
   const { user } = useAuth();
+  const { custom, customIncome, addCategory } = useCustomCategories();
 
   const [type, setType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
@@ -58,15 +59,43 @@ export default function AddTransactionScreen() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const categories =
-    type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  // New category box (shows when "Other" is selected)
+  const [newName, setNewName] = useState("");
+  const [creatingCat, setCreatingCat] = useState(false);
+
+  // Defaults + the user's own categories + "Other" at the end
+  const defaults = type === "expense" ? EXPENSE_DEFAULTS : INCOME_DEFAULTS;
+  const savedCustom = type === "expense" ? custom : customIncome;
+  const categories = [
+    ...defaults,
+    ...savedCustom.filter(
+      (c) => !defaults.some((d) => d.toLowerCase() === c.toLowerCase()),
+    ),
+    "Other",
+  ];
 
   function changeType(value: string) {
     const newType = value === "income" ? "income" : "expense";
     setType(newType);
     setCategory(
-      newType === "expense" ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0],
+      newType === "expense" ? EXPENSE_DEFAULTS[0] : INCOME_DEFAULTS[0],
     );
+    setNewName("");
+    setError("");
+  }
+
+  async function handleCreateCategory() {
+    setError("");
+    setCreatingCat(true);
+    const result = await addCategory(newName, categories, type);
+    setCreatingCat(false);
+    if (result.error || !result.name) {
+      setError(result.error ?? "Could not add the category.");
+      return;
+    }
+    setCategory(result.name);
+    setNewName("");
+    setSuccess(`Category "${result.name}" saved. You can reuse it anytime.`);
   }
 
   async function handleSave() {
@@ -158,13 +187,44 @@ export default function AddTransactionScreen() {
                 <Chip
                   key={c}
                   selected={category === c}
-                  onPress={() => setCategory(c)}
+                  onPress={() => {
+                    setCategory(c);
+                    setError("");
+                  }}
                   style={styles.chip}
                 >
                   {c}
                 </Chip>
               ))}
             </View>
+
+            {category === "Other" ? (
+              <View style={styles.newBox}>
+                <Text style={{ color: colors.secondary, marginBottom: 8 }}>
+                  Want your own category? Type a name and tap Add. It will be
+                  saved so you can use it again.
+                </Text>
+                <View style={styles.newRow}>
+                  <TextInput
+                    label="Your own category"
+                    mode="outlined"
+                    value={newName}
+                    onChangeText={setNewName}
+                    maxLength={20}
+                    style={styles.newInput}
+                  />
+                  <Button
+                    mode="contained"
+                    onPress={handleCreateCategory}
+                    loading={creatingCat}
+                    disabled={creatingCat || newName.trim().length === 0}
+                    textColor="#0B1220"
+                  >
+                    Add
+                  </Button>
+                </View>
+              </View>
+            ) : null}
 
             <TextInput
               label="Description (optional)"
@@ -217,6 +277,9 @@ const styles = StyleSheet.create({
   label: { marginBottom: 8, marginTop: 4 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   chip: {},
+  newBox: { marginBottom: 16 },
+  newRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  newInput: { flex: 1 },
   button: { marginTop: 12, borderRadius: 12 },
   buttonContent: { paddingVertical: 6 },
 });

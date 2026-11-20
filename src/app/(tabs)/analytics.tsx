@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -38,6 +39,7 @@ function sameMonth(d: Date, month: Date) {
 
 export default function AnalyticsScreen() {
   const colors = useTheme();
+  const router = useRouter();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +146,31 @@ export default function AnalyticsScreen() {
         >
           Analytics
         </Text>
+
+        {/* Link to the Budgets screen */}
+        <Card
+          style={[styles.card, { backgroundColor: colors.card }]}
+          onPress={() => router.push("/budgets" as any)}
+        >
+          <Card.Content style={styles.budgetLinkRow}>
+            <View style={{ flex: 1 }}>
+              <Text
+                variant="titleMedium"
+                style={{ color: colors.text, fontWeight: "700" }}
+              >
+                Monthly budgets
+              </Text>
+              <Text style={{ color: colors.secondary }}>
+                Set limits for each category and track what is left
+              </Text>
+            </View>
+            <IconButton
+              icon="chevron-right"
+              iconColor={colors.primary}
+              style={{ margin: 0 }}
+            />
+          </Card.Content>
+        </Card>
 
         {/* Month selector */}
         <View style={styles.monthRow}>
@@ -353,7 +380,11 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  heading: { fontWeight: "700", marginBottom: 8 },
+  heading: { fontWeight: "700", marginBottom: 12 },
+  budgetLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   monthRow: {
     flexDirection: "row",
     alignItems: "center",
