@@ -1,56 +1,131 @@
-# Welcome to your Expo app 👋
+<p align="center">
+  <img src="docs/screenshots/logo.jpg" alt="SpendWise logo" width="120">
+</p>
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+# SpendWise
 
-## Get started
+SpendWise is a personal expense tracker mobile app. It helps you record income and expenses, set monthly budgets, and understand where your money goes. It is built with React Native (Expo) and Firebase, and it works on Android and on the web.
 
-1. Install dependencies
+This is a second-year (Semester 3) IT engineering college mini-project.
 
-   ```bash
+## Features
+
+- **Login and registration** with Firebase Authentication (email and password), with friendly error messages
+- **Dashboard** with total balance, this month's income and expenses, and recent transactions that update live
+- **Add transaction** with an income/expense switch, amount, category, description and a calendar date picker
+- **Custom categories**: tap "Other", type your own category once, and it is saved for reuse everywhere
+- **Transactions history** with filters (income/expense and category), edit and delete
+- **Analytics** with income vs expense, spending by category, and a 6-month trend, with a month selector
+- **Budgets** with monthly limits per category, spent and remaining amounts, and colour-coded progress bars (green, orange near the limit, red when over)
+- **Profile** with your details, balance converted to other currencies, theme switch and logout
+- **Currency conversion** using the live Frankfurter exchange-rate API (all supported currencies, searchable)
+- **Dark and light theme**, dark by default, and your choice is remembered
+- **Animated splash screen** and custom app icon
+- **Private data**: Firestore security rules let each user read and write only their own data
+
+## Screens
+
+1. Login
+2. Register
+3. Dashboard
+4. Transactions
+5. Add Transaction
+6. Analytics
+7. Budgets
+8. Profile
+
+(plus an animated splash screen)
+
+## Tech stack
+
+| Part          | Technology                                           |
+| ------------- | ---------------------------------------------------- |
+| Framework     | Expo SDK 58, React Native 0.88, React 19, TypeScript |
+| Navigation    | Expo Router (file-based, typed routes)               |
+| UI library    | React Native Paper                                   |
+| Icons         | @expo/vector-icons                                   |
+| Backend       | Firebase Authentication and Cloud Firestore          |
+| Local storage | AsyncStorage (saves the theme choice)                |
+| External API  | Frankfurter (currency exchange rates)                |
+
+## Database structure (Firestore)
+
+- `users/{uid}`: name, email, currency, displayCurrency, createdAt
+- `users/{uid}/transactions/{id}`: type, amount, category, description, date, createdAt
+- `users/{uid}/budgets/{category}`: category, limit, updatedAt
+- `users/{uid}/categories/{id}`: name, type, createdAt
+
+## Security rules
+
+Each user can only access their own data:
+
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        match /users/{userId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+          match /{document=**} {
+            allow read, write: if request.auth != null && request.auth.uid == userId;
+          }
+        }
+      }
+    }
+
+## How to run the project
+
+1. Install [Node.js](https://nodejs.org) and [Git](https://git-scm.com).
+2. Clone the repository:
+
+   git clone https://github.com/samradnee-kerkar/SpendWise.git
+   cd SpendWise
+
+3. Install the packages:
+
    npm install
-   ```
 
-2. Start the app
+4. Start the app:
 
-   ```bash
-   npx expo start
-   ```
+   npx expo start --clear
 
-In the output, you'll find options to open the app in a
+5. Open it:
+   - **On an Android phone:** install the **Expo Go** app, then scan the QR code shown in the terminal.
+   - **In a browser:** press `w` in the terminal.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+The Firebase web configuration is already included in `src/lib/firebase.ts`, so no extra setup is needed. Firebase web keys are safe to share because the data is protected by the Firestore security rules above.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Project structure
 
-## Get a fresh project
+    src/
+      app/
+        _layout.tsx        Providers and login/logout routing
+        login.tsx
+        register.tsx
+        budgets.tsx
+        (tabs)/
+          index.tsx        Dashboard
+          explore.tsx      Transactions
+          add.tsx          Add Transaction
+          analytics.tsx    Analytics
+          profile.tsx      Profile
+      components/          Tabs, splash screen, themed components
+      constants/theme.ts   Light and dark colours
+      hooks/               Theme hooks
+      lib/                 Firebase setup, auth hook, categories hook
 
-When you're ready, run:
+## Screenshots
 
-```bash
-npm run reset-project
-```
+| Login and Register                                         | Dashboard                                    | Add Transaction                              |
+| ---------------------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
+| ![Login and Register](docs/screenshots/authentication.jpg) | ![Dashboard](docs/screenshots/dashboard.jpg) | ![Add Transaction](docs/screenshots/add.jpg) |
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+| Transactions                                       | Analytics                                    | Analytics (6-month graph)                                |
+| -------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------- |
+| ![Transactions](docs/screenshots/transactions.jpg) | ![Analytics](docs/screenshots/analytics.jpg) | ![Analytics graph](docs/screenshots/analytics-graph.jpg) |
 
-### Other setup steps
+| Budgets                                  | Profile                                  |
+| ---------------------------------------- | ---------------------------------------- |
+| ![Budgets](docs/screenshots/budgets.jpg) | ![Profile](docs/screenshots/profile.jpg) |
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Author
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Samradnee Kerkar, Second Year (Semester 3) IT Engineering

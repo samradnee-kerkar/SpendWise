@@ -22,6 +22,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import DateField from "@/components/date-field";
 import { useTheme } from "@/hooks/use-theme";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/use-auth";
@@ -111,7 +112,7 @@ export default function AddTransactionScreen() {
     const parts = date.split("-").map(Number);
     const parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
     if (parts.length !== 3 || isNaN(parsedDate.getTime())) {
-      setError("Date must look like 2026-11-19.");
+      setError("Please choose a valid date.");
       return;
     }
     if (!user) {
@@ -233,13 +234,8 @@ export default function AddTransactionScreen() {
               onChangeText={setDescription}
               style={styles.input}
             />
-            <TextInput
-              label="Date (YYYY-MM-DD)"
-              mode="outlined"
-              value={date}
-              onChangeText={setDate}
-              style={styles.input}
-            />
+
+            <DateField label="Date" value={date} onChange={setDate} />
 
             {error ? <HelperText type="error">{error}</HelperText> : null}
             {success ? (

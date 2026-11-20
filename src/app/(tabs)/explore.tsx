@@ -24,6 +24,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import DateField from "@/components/date-field";
 import { useTheme } from "@/hooks/use-theme";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/use-auth";
@@ -62,7 +63,7 @@ function formatDate(d: Date) {
   });
 }
 
-// Turns a Date into YYYY-MM-DD for the text box.
+// Turns a Date into YYYY-MM-DD for the date field.
 function toDateString(d: Date) {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -200,7 +201,7 @@ export default function HistoryScreen() {
     const parts = editDate.split("-").map(Number);
     const parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
     if (parts.length !== 3 || isNaN(parsedDate.getTime())) {
-      setEditError("Date must look like 2026-11-19.");
+      setEditError("Please choose a valid date.");
       return;
     }
 
@@ -369,13 +370,9 @@ export default function HistoryScreen() {
                 onChangeText={setEditDescription}
                 style={styles.input}
               />
-              <TextInput
-                label="Date (YYYY-MM-DD)"
-                mode="outlined"
-                value={editDate}
-                onChangeText={setEditDate}
-                style={styles.input}
-              />
+
+              <DateField label="Date" value={editDate} onChange={setEditDate} />
+
               {editError ? (
                 <HelperText type="error">{editError}</HelperText>
               ) : null}
