@@ -1,19 +1,26 @@
 import {
+  Timestamp,
   collection,
   deleteDoc,
   doc,
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
+  Button,
   Card,
   Chip,
+  Dialog,
+  HelperText,
   IconButton,
+  Portal,
   Text,
+  TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -32,6 +39,17 @@ type Transaction = {
 
 type Filter = "all" | "income" | "expense";
 
+const EXPENSE_CATEGORIES = [
+  "Food",
+  "Travel",
+  "Shopping",
+  "Bills",
+  "Health",
+  "Fun",
+  "Other",
+];
+const INCOME_CATEGORIES = ["Salary", "Pocket money", "Gift", "Other"];
+
 function formatMoney(value: number) {
   return "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 }
@@ -44,6 +62,13 @@ function formatDate(d: Date) {
   });
 }
 
+// Turns a Date into YYYY-MM-DD for the text box.
+function toDateString(d: Date) {
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
 export default function HistoryScreen() {
   const colors = useTheme();
   const { user } = useAuth();
@@ -51,6 +76,15 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
   const [category, setCategory] = useState("All");
+
+  // Edit form state
+  const [editing, setEditing] = useState<Transaction | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editError, setEditError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -108,7 +142,48 @@ export default function HistoryScreen() {
     ]);
   }
 
-  // Category chips are built from the categories you actually used.
+  function startEdit(t: Transaction) {
+    setEditing(t);
+    setEditAmount(String(t.amount));
+    setEditCategory(t.category);
+    setEditDescription(t.description);
+    setEditDate(toDateString(t.date));
+    setEditError("");
+  }
+
+  async function saveEdit() {
+    if (!user || !editing) return;
+    setEditError("");
+
+    const value = Number(editAmount);
+    if (!editAmount || isNaN(value) || value <= 0) {
+      setEditError("Please enter an amount greater than 0.");
+      return;
+    }
+    const parts = editDate.split("-").map(Number);
+    const parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    if (parts.length !== 3 || isNaN(parsedDate.getTime())) {
+      setEditError("Date must look like 2026-11-19.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "users", user.uid, "transactions", editing.id), {
+        amount: value,
+        category: editCategory,
+        description: editDescription.trim(),
+        date: Timestamp.fromDate(parsedDate),
+      });
+      setEditing(null);
+    } catch (e) {
+      console.log("Could not update:", e);
+      setEditError("Could not save changes. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const categories = [
     "All",
     ...Array.from(new Set(transactions.map((t) => t.category))),
@@ -119,6 +194,9 @@ export default function HistoryScreen() {
       (filter === "all" || t.type === filter) &&
       (category === "All" || t.category === category),
   );
+
+  const editCategories =
+    editing?.type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -182,9 +260,17 @@ export default function HistoryScreen() {
                   {formatMoney(t.amount)}
                 </Text>
                 <IconButton
+                  icon="pencil"
+                  iconColor={colors.secondary}
+                  size={20}
+                  style={styles.iconBtn}
+                  onPress={() => startEdit(t)}
+                />
+                <IconButton
                   icon="delete"
                   iconColor={colors.error}
                   size={20}
+                  style={styles.iconBtn}
                   onPress={() => confirmDelete(t.id)}
                 />
               </Card.Content>
@@ -192,6 +278,61 @@ export default function HistoryScreen() {
           ))
         )}
       </ScrollView>
+
+      <Portal>
+        <Dialog visible={!!editing} onDismiss={() => setEditing(null)}>
+          <Dialog.Title>
+            Edit {editing?.type === "income" ? "income" : "expense"}
+          </Dialog.Title>
+          <Dialog.ScrollArea style={styles.dialogArea}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <TextInput
+                label="Amount"
+                mode="outlined"
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="decimal-pad"
+                left={<TextInput.Affix text="₹" />}
+                style={styles.input}
+              />
+              <View style={styles.chips}>
+                {editCategories.map((c) => (
+                  <Chip
+                    key={c}
+                    selected={editCategory === c}
+                    onPress={() => setEditCategory(c)}
+                  >
+                    {c}
+                  </Chip>
+                ))}
+              </View>
+              <TextInput
+                label="Description"
+                mode="outlined"
+                value={editDescription}
+                onChangeText={setEditDescription}
+                style={styles.input}
+              />
+              <TextInput
+                label="Date (YYYY-MM-DD)"
+                mode="outlined"
+                value={editDate}
+                onChangeText={setEditDate}
+                style={styles.input}
+              />
+              {editError ? (
+                <HelperText type="error">{editError}</HelperText>
+              ) : null}
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions>
+            <Button onPress={() => setEditing(null)}>Cancel</Button>
+            <Button onPress={saveEdit} loading={saving} disabled={saving}>
+              Save
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </SafeAreaView>
   );
 }
@@ -209,5 +350,8 @@ const styles = StyleSheet.create({
   heading: { fontWeight: "700", marginBottom: 16 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   txCard: { borderRadius: 14, marginBottom: 10 },
-  txRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  txRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  iconBtn: { margin: 0 },
+  input: { marginBottom: 12 },
+  dialogArea: { maxHeight: 360, paddingHorizontal: 20 },
 });
